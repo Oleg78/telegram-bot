@@ -87,19 +87,7 @@ install_rocks() {
 install() {
   git pull
   git submodule update --init --recursive
-  patch -i "patches/disable-python-and-libjansson.patch" -p 0 --batch --forward
   RET=$?;
-
-  cd tg
-  if [ $RET -ne 0 ]; then
-    autoconf -i
-  fi
-  ./configure && make
-
-  RET=$?; if [ $RET -ne 0 ]; then
-    echo "Error. Exiting."; exit $RET;
-  fi
-  cd ..
   install_luarocks
   install_rocks
 }
@@ -109,17 +97,5 @@ if [ "$1" = "install" ]; then
 elif [ "$1" = "update" ]; then
   update
 else
-  if [ ! -f ./tg/telegram.h ]; then
-    echo "tg not found"
-    echo "Run $0 install"
-    exit 1
-  fi
-
-  if [ ! -f ./tg/bin/telegram-cli ]; then
-    echo "tg binary not found"
-    echo "Run $0 install"
-    exit 1
-  fi
-
-  ./tg/bin/telegram-cli -k ./tg/tg-server.pub -s ./bot/bot.lua -l 1 -E $@
+  lua "$(dirname "$0")"/bot/bot.lua $1 $@
 fi

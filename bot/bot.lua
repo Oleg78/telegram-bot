@@ -1,12 +1,12 @@
-package.path = package.path .. ';.luarocks/share/lua/5.2/?.lua'
-  ..';.luarocks/share/lua/5.2/?/init.lua'
-package.cpath = package.cpath .. ';.luarocks/lib/lua/5.2/?.so'
+package.path = package.path .. ';./bot/?.lua;./lua-telegram-bot/?.lua;./libs/?.lua;./?.lua'
 
-require("./bot/utils")
+require("./utils")
 
 local f = assert(io.popen('/usr/bin/git describe --tags', 'r'))
 VERSION = assert(f:read('*a'))
 f:close()
+
+msg_text_max = 4000
 
 -- This function is called when tg receive a msg
 function on_msg_receive (msg)
@@ -16,13 +16,13 @@ function on_msg_receive (msg)
 
   local receiver = get_receiver(msg)
 
-  -- vardump(msg)
+  vardump(msg)
   msg = pre_process_service_msg(msg)
   if msg_valid(msg) then
     msg = pre_process_msg(msg)
     if msg then
       match_plugins(msg)
-      mark_read(receiver, ok_cb, false)
+      --mark_read(receiver, ok_cb, false)
     end
   end
 end
@@ -32,7 +32,6 @@ end
 
 function on_binlog_replay_end()
   started = true
-  postpone (cron_plugins, false, 60*5.0)
   -- See plugins/isup.lua as an example for cron
 
   _config = load_config()
@@ -60,7 +59,7 @@ function msg_valid(msg)
     return false
   end
 
-  if not msg.to.id then
+  if not msg.chat.id then
     print('\27[36mNot valid: To id not provided\27[39m')
     return false
   end
@@ -75,7 +74,7 @@ function msg_valid(msg)
     return false
   end
 
-  if msg.to.type == 'encr_chat' then
+  if msg.chat.type == 'encr_chat' then
     print('\27[36mNot valid: Encrypted chat\27[39m')
     return false
   end
@@ -153,6 +152,7 @@ function match_plugin(plugin, plugin_name, msg)
       print("msg matches: ", pattern)
 
       if is_plugin_disabled_on_chat(plugin_name, receiver) then
+        print('Disabled')
         return nil
       end
       -- Function exists
@@ -161,8 +161,10 @@ function match_plugin(plugin, plugin_name, msg)
         if not warns_user_not_allowed(plugin, msg) then
           local result = plugin.run(msg, matches)
           if result then
-            send_large_msg(receiver, result)
+            send_msg(receiver, result)
           end
+        else
+          print('Warn')
         end
       end
       -- One patterns matches
@@ -174,6 +176,62 @@ end
 -- DEPRECATED, use send_large_msg(destination, text)
 function _send_msg(destination, text)
   send_large_msg(destination, text)
+end
+
+function send_photo(receiver, file_path, cb, cb_extra)
+  bot.sendPhoto(receiver, file_path)
+  cb(cb_extra)
+end
+
+function original_send_msg(destination, text, cb, extra)
+  bot.sendMessage(destination, text, "Markdown")
+  cb(extra)
+end
+
+function split(str, max_line_length, splitter)
+   local lines = {}
+   local line
+   str:gsub(splitter, function(spc, word)
+                            if not line or #line + #spc + #word > max_line_length then
+                                table.insert(lines, line)
+                                line = word
+                            else
+                                line = line..spc..word
+                            end
+                          end)
+   table.insert(lines, line)
+   return lines
+end
+
+function send_queue(extra)
+  local messages = extra.messages
+  if #messages > 0 then
+    local msg = messages[1]
+    table.remove(messages, 1)
+    local xtr = {
+      destination=extra.destination,
+      messages=messages
+    }
+    original_send_msg(extra.destination, msg, send_queue, xtr)
+  end
+end
+
+function send_msg(destination, text, callback, data)
+  msgs = {}
+  local space_splitter = '(%s*)(%S+)'
+  local line__splitter = '([\n]*)([^\n]+)'
+  local parts = 0
+  for l, line in ipairs(split(text, msg_text_max, line__splitter)) do
+    for w, word in ipairs(split(line, msg_text_max, space_splitter)) do
+      table.insert(msgs, word)
+      parts = parts + 1
+    end
+  end
+  local xtr = {
+    destination=destination,
+    messages=msgs
+  }
+  send_queue(xtr)
 end
 
 -- Save the content of _config to config.lua
@@ -261,6 +319,9 @@ function load_plugins()
 
     local ok, err =  pcall(function()
       local t = loadfile("plugins/"..v..'.lua')()
+      if t.cron ~= nil then
+        t.cron_status = 'wait'
+      end
       plugins[v] = t
     end)
 
@@ -272,18 +333,21 @@ function load_plugins()
   end
 end
 
--- Call and postpone execution for cron plugins
+-- Cron all the enabled plugins
 function cron_plugins()
-
-  for name, plugin in pairs(plugins) do
-    -- Only plugins with cron function
-    if plugin.cron ~= nil then
-      plugin.cron()
+  -- cron_statuses:
+  --   wait
+  --   postpone
+  --   run
+  for name, desc in pairs(plugins) do
+    if (desc.cron ~= nil
+        and cron_plugin_enabled(desc.name)
+        and desc.cron_status == 'wait') then
+      desc.cron_status = 'postponed'
+      desc.cron_status_change_time = os.date('%d.%m.%Y %H:%M:%S')
+      safe_call(desc.cron)
     end
   end
-
-  -- Called again in 5 mins
-  postpone (cron_plugins, false, 5*60.0)
 end
 
 -- Start and load values
@@ -291,3 +355,102 @@ our_id = 0
 now = os.time()
 math.randomseed(now)
 started = false
+
+local token = tostring(arg[1]) or ""
+-- create and configure new bot with set token
+bot, extension = require("../lua-telegram-bot/lua-bot-api").configure(token)
+
+local function parseUpdateCallbacks(update)
+  if (update) then
+    extension.onUpdateReceive(update)
+  end
+  if (update.message) then
+    if (update.message.text) then
+      extension.onTextReceive(update.message)
+    elseif (update.message.photo) then
+      extension.onPhotoReceive(update.message)
+    elseif (update.message.audio) then
+      extension.onAudioReceive(update.message)
+    elseif (update.message.document) then
+      extension.onDocumentReceive(update.message)
+    elseif (update.message.sticker) then
+      extension.onStickerReceive(update.message)
+    elseif (update.message.video) then
+      extension.onVideoReceive(update.message)
+    elseif (update.message.voice) then
+      extension.onVoiceReceive(update.message)
+    elseif (update.message.contact) then
+      extension.onContactReceive(update.message)
+    elseif (update.message.location) then
+      extension.onLocationReceive(update.message)
+    elseif (update.message.left_chat_participant) then
+      extension.onLeftChatParticipant(update.message)
+    elseif (update.message.new_chat_participant) then
+      extension.onNewChatParticipant(update.message)
+    elseif (update.message.new_chat_photo) then
+      extension.onNewChatPhoto(update.message)
+    elseif (update.message.delete_chat_photo) then
+      extension.onDeleteChatPhoto(update.message)
+    elseif (update.message.group_chat_created) then
+      extension.onGroupChatCreated(update.message)
+    elseif (update.message.supergroup_chat_created) then
+      extension.onSupergroupChatCreated(update.message)
+    elseif (update.message.channel_chat_created) then
+      extension.onChannelChatCreated(update.message)
+    elseif (update.message.migrate_to_chat_id) then
+      extension.onMigrateToChatId(update.message)
+    elseif (update.message.migrate_from_chat_id) then
+      extension.onMigrateFromChatId(update.message)
+    else
+      extension.onUnknownTypeReceive(update)
+    end
+  elseif (update.edited_message) then
+    extension.onEditedMessageReceive(update.edited_message)
+  elseif (update.inline_query) then
+    extension.onInlineQueryReceive(update.inline_query)
+  elseif (update.chosen_inline_result) then
+    extension.onChosenInlineQueryReceive(update.chosen_inline_result)
+  elseif (update.callback_query) then
+    extension.onCallbackQueryReceive(update.callback_query)
+  else
+    extension.onUnknownTypeReceive(update)
+  end
+end
+
+local function run(limit, timeout, upd_interval, cron_function, cron_interval)
+  if limit == nil then limit = 1 end
+  if timeout == nil then timeout = 0 end
+  local offset = 0
+  RUNBOT = true
+  while RUNBOT == true do
+    socket.sleep(upd_interval)
+    if cron_function ~= nil and os.time() % cron_interval == 0 then
+      cron_function()
+    end
+    local updates = bot.getUpdates(offset, limit, timeout)
+    if(updates) then
+      if (updates.result) then
+        for key, update in pairs(updates.result) do
+          parseUpdateCallbacks(update)
+          offset = update.update_id + 1
+        end
+      end
+    end
+  end
+end
+
+extension.run = run
+
+on_binlog_replay_end()
+-- override onMessageReceive function so it does what we want
+extension.onTextReceive = function(msg)
+  on_msg_receive(msg)
+end
+extension.onLocationReceive = function(msg)
+  msg.text = '[venue]'
+  on_msg_receive(msg)
+end
+
+-- This runs the internal update and callback handler
+-- you can even override run()
+extension.run(1, 0, 0.5, cron_plugins, 5)

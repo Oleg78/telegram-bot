@@ -1,5 +1,5 @@
 -- Saves the number of messages from a user
--- Can check the number of messages with !stats 
+-- Can check the number of messages with !stats
 
 do
 
@@ -47,7 +47,7 @@ local function chat_stats(chat_id)
   end
 
   -- Sort users by msgs number
-  table.sort(users_info, function(a, b) 
+  table.sort(users_info, function(a, b)
       if a.msgs and b.msgs then
         return a.msgs > b.msgs
       end
@@ -85,14 +85,14 @@ local function pre_process(msg)
   end
 
   -- Save stats on Redis
-  if msg.to.type == 'chat' then
+  if msg.chat.type == 'chat' then
     -- User is on chat
-    local hash = 'chat:'..msg.to.id..':users'
+    local hash = 'chat:'..msg.chat.id..':users'
     redis:sadd(hash, msg.from.id)
   end
 
   -- Total user msgs
-  local hash = 'msgs:'..msg.from.id..':'..msg.to.id
+  local hash = 'msgs:'..msg.from.id..':'..msg.chat.id
   redis:incr(hash)
 
   -- Check flood
@@ -139,8 +139,8 @@ local function run(msg, matches)
   if matches[1]:lower() == "stats" then
 
     if not matches[2] then
-      if msg.to.type == 'chat' then
-        local chat_id = msg.to.id
+      if msg.chat.type == 'chat' then
+        local chat_id = msg.chat.id
         return chat_stats(chat_id)
       else
         return 'Stats works only on chats'
@@ -166,7 +166,7 @@ local function run(msg, matches)
 end
 
 return {
-  description = "Plugin to update user stats.", 
+  description = "Plugin to update user stats.",
   usage = {
     "!stats: Returns a list of Username [telegram_id]: msg_num",
     "!stats chat <chat_id>: Show stats for chat_id",
@@ -176,7 +176,7 @@ return {
     "^!([Ss]tats)$",
     "^!([Ss]tats) (chat) (%d+)",
     "^!([Ss]tats) (bot)"
-    }, 
+    },
   run = run,
   pre_process = pre_process
 }

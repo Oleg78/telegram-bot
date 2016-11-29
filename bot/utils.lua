@@ -12,19 +12,20 @@ redis = (loadfile "./libs/redis.lua")()
 http.TIMEOUT = 10
 
 function get_receiver(msg)
-  if msg.to.type == 'user' then
-    return 'user#id'..msg.from.id
-  end
-  if msg.to.type == 'chat' then
-    return 'chat#id'..msg.to.id
-  end
-  if msg.to.type == 'encr_chat' then
-    return msg.to.print_name
-  end
+  return msg.chat.id
+  -- if msg.chat.type == 'private' then
+  --   return 'user#id'..msg.chat.id
+  -- end
+  -- if msg.chat.type == 'chat' then
+  --   return 'chat#id'..msg.chat.id
+  -- end
+  -- if msg.chat.type == 'encr_chat' then
+  --   return msg.chat.print_name
+  -- end
 end
 
 function is_chat_msg( msg )
-  if msg.to.type == 'chat' then
+  if msg.chat.type == 'chat' then
     return true
   end
   return false
@@ -504,19 +505,19 @@ function load_from_file(file, default_data)
     print ('Created file', file)
   else
     print ('Data loaded from file', file)
-    f:close() 
+    f:close()
   end
   return loadfile (file)()
 end
 
 -- See http://stackoverflow.com/a/14899740
 function unescape_html(str)
-  local map = { 
-    ["lt"]  = "<", 
+  local map = {
+    ["lt"]  = "<",
     ["gt"]  = ">",
     ["amp"] = "&",
     ["quot"] = '"',
-    ["apos"] = "'" 
+    ["apos"] = "'"
   }
   new = string.gsub(str, '(&(#?x?)([%d%a]+);)', function(orig, n, s)
     var = map[s] or n == "#" and string.char(s)
