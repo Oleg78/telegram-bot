@@ -1,19 +1,7 @@
 telegram-bot
 ============
 
-[![https://yago.me/tg-bot](https://img.shields.io/badge/💬_Telegram-Bot_Dev._Group-blue.svg)](https://yago.me/tg-bot) [![https://telegram.me/Yago_Perez](https://img.shields.io/badge/💬_Telegram-Yago__Perez-blue.svg)](https://telegram.me/Yago_Perez) [![https://gitter.im/yagop/telegram-bot](https://img.shields.io/badge/💬_Gitter-Join_Chat-green.svg)](https://gitter.im/yagop/telegram-bot)
-[![Donate button](https://img.shields.io/badge/Red_Cross-donate-yellow.svg)](https://www.icrc.org/ "Donate to Red Cross Society")
-
-A Telegram Bot based on plugins using [tg](https://github.com/vysheng/tg).
-
-Multimedia
-----------
-- When user sends image (png, jpg, jpeg) URL download and send it to origin.
-- When user sends media (gif, mp4, pdf, etc.) URL download and send it to origin.
-- When user sends twitter URL, send text and images to origin. Requires OAuth Key.
-- When user sends YouTube URL, send to origin video image.
-
-![http://i.imgur.com/0FGUvU0.png](http://i.imgur.com/0FGUvU0.png) ![http://i.imgur.com/zW7WWWt.png](http://i.imgur.com/zW7WWWt.png) ![http://i.imgur.com/zW7WWWt.png](http://i.imgur.com/kPK7paz.png)
+A Telegram Bot forked from [yagop/telegram-bot](https://github.com/yagop/telegram-bot) based on plugins using [lua-telegram-bot](https://github.com/cosmonawt/lua-telegram-bot) (was using [tg](https://github.com/vysheng/tg)).
 
 Bot Commands
 ------------
@@ -318,12 +306,9 @@ Bot Commands
   </tbody>
 </table>
 
-[Installation](https://github.com/yagop/telegram-bot/wiki/Installation)
+[Installation](TODO)
 ------------
-```bash
-# Tested on Ubuntu 14.04, for other OSs check out https://github.com/yagop/telegram-bot/wiki/Installation
-sudo apt-get install libreadline-dev libconfig-dev libssl-dev lua5.2 liblua5.2-dev libevent-dev make unzip git redis-server g++ libjansson-dev libpython-dev expat libexpat1-dev
-```
+TODO
 
 ```bash
 # After those dependencies, lets install the bot
@@ -331,7 +316,7 @@ cd $HOME
 git clone https://github.com/yagop/telegram-bot.git
 cd telegram-bot
 ./launch.sh install
-./launch.sh # Will ask you for a phone number & confirmation code.
+./start.sh YOURBOTAPIKEY
 ```
 
 Enable more [`plugins`](https://github.com/yagop/telegram-bot/tree/master/plugins)
@@ -347,17 +332,8 @@ Those commands require a privileged user, privileged users are defined inside `d
 
 Run it as a daemon
 ------------
-If your Linux/Unix comes with [upstart](http://upstart.ubuntu.com/) you can run the bot by this way
-```bash
-$ sed -i "s/yourusername/$(whoami)/g" etc/telegram.conf
-$ sed -i "s_telegrambotpath_$(pwd)_g" etc/telegram.conf
-$ sudo cp etc/telegram.conf /etc/init/
-$ sudo start telegram # To start it
-$ sudo stop telegram # To stop it
-```
+TODO
 
 Contact me
 ------------
-You can contact me [via Telegram](https://telegram.me/yago_perez) but if you have an issue please [open](https://github.com/yagop/telegram-bot/issues) one.
-
-[Join](https://telegram.me/joinchat/ALJ3izwBCNXSswCHOKMwGw) on the TelegramBot Discussion Group.
+If you have an issue please [open](https://github.com/Oleg78/telegram-bot/issues) one.
